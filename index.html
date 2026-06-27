@@ -367,201 +367,215 @@
         </div>
     </div>
 
-   <script>
-        // الرابط الخاص بك المطور
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZ6-9Ow5O0iiWhbUNEowyXf6tvNVV6Le5EYVxSXNOPqFspcz_ZDv_gGgv4Ojtu12PIWg/exec';
+<script>
+        // ⚠️ مهم جداً: ضع رابط الـ Web App الخاص بك هنا بعد ما تدير Deploy للسكريبت الجديد
+        const SCRIPT_URL = 'رابط_الـ_Web_App_نتاعك_هنا';
 
-        // دالة حماية بسيطة لتنظيف النصوص قبل الحقن في الـ DOM (تمنع ثغرات XSS)
+        // دالة حماية النصوص من الثغرات (XSS)
         function sanitizeHTML(str) {
-            var temp = document.createElement('div');
+            if (!str) return '';
+            const temp = document.createElement('div');
             temp.textContent = str;
             return temp.innerHTML;
         }
 
-        // --- جلب البيانات وعرضها آلياً على كروت بريميوم فائقة الجمال ---
-        async function fetchDynamicData() {
+        // تحويل الملفات إلى Base64 باش نقدرو نبعثوها لقوقل
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // 1. جلب وعرض البيانات (الدورات والمشاريع)
+        async function loadPlatformData() {
             try {
-                const response = await fetch(SCRIPT_URL + '?action=get_data');
-                if (!response.ok) throw new Error('فشل جلب البيانات من السيرفر السحابي.');
+                const response = await fetch(`${SCRIPT_URL}?action=get_data`);
                 const data = await response.json();
                 
-                // رسم كروت البرامج والدورات المفعلة بستايل عالمي
-                const coursesContainer = document.getElementById('courses-container');
-                if (data.courses && data.courses.length > 0) {
-                    let coursesHTML = ''; // تحسين الأداء: تجميع الـ HTML قبل حقنه في الـ DOM
-                    data.courses.forEach(course => {
-                        // إضافة صورة الأستاذ، وإذا لم توجد نستخدم صورة افتراضية أنيقة
-                        const instructorPhoto = course.instructorImage && course.instructorImage.trim() !== "" ? course.instructorImage : `https://ui-avatars.com/api/?name=${encodeURIComponent(course.instructor)}&background=5b21b6&color=fff&bold=true&rounded=true`;
-
-                        coursesHTML += `
-                        <div class="bg-white rounded-2xl p-6 premium-card flex flex-col justify-between shadow-sm relative overflow-hidden group">
-                            <div class="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 rounded-full blur-xl group-hover:bg-violet-500/10 transition duration-300"></div>
-                            <div>
-                                <div class="flex items-center gap-3 mb-5 border-b border-slate-50 pb-4">
-                                    <img src="${sanitizeHTML(instructorPhoto)}" class="w-11 h-11 rounded-full shadow-sm object-cover">
-                                    <div>
-                                        <h4 class="font-black text-sm text-slate-900">${sanitizeHTML(course.instructor)}</h4>
-                                        <p class="text-[10px] text-slate-400 font-bold flex items-center gap-1"><svg class="w-3 h-3 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg> ولاية: ${sanitizeHTML(course.wilaya)}</p>
-                                    </div>
-                                </div>
-                                <h3 class="font-black text-slate-800 text-lg mb-3 leading-snug group-hover:text-violet-900 transition">${sanitizeHTML(course.courseName)}</h3>
-                                <p class="text-xs text-slate-500 mb-4 font-bold flex items-center gap-1.5"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> مدة التأطير والمتابعة: <span class="text-violet-600 font-black">${sanitizeHTML(course.duration)}</span></p>
-                                <div class="bg-slate-50/80 p-3.5 rounded-xl mb-6 flex justify-between items-center border border-slate-100/60">
-                                    <span class="text-xs font-bold text-slate-400">مستحقات التأطير المعتمدة:</span>
-                                    <span class="font-black text-lg text-slate-900 tracking-tight">${sanitizeHTML(course.price)} <span class="text-xs text-slate-500">د.ج</span></span>
-                                </div>
-                            </div>
-                            <button onclick="openPaymentModal('${sanitizeHTML(course.courseName)} - ${sanitizeHTML(course.instructor)}')" class="w-full bg-slate-900 text-white text-xs font-black py-4 rounded-xl hover:bg-violet-700 transition-all duration-300 shadow-sm group-hover:shadow-md">احجز مقعدك والتحق فوراً</button>
-                        </div>`;
-                    });
-                    coursesContainer.innerHTML = coursesHTML;
-                } else {
-                    coursesContainer.innerHTML = '<div class="col-span-full text-center text-slate-400 font-bold py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-white">لا توجد برامج تدريبية مفعلة على السيرفر حالياً.</div>';
-                }
-
-                // رسم كروت معرض مشاريع التخرج بستايل عالمي
-                const projectsContainer = document.getElementById('projects-container');
-                if (data.projects && data.projects.length > 0) {
-                    let projectsHTML = '';
-                    data.projects.forEach(proj => {
-                        projectsHTML += `
-                        <div class="bg-white rounded-2xl overflow-hidden premium-card shadow-sm flex flex-col justify-between group">
-                            <div>
-                                <div class="h-48 bg-slate-100 relative flex items-center justify-center border-b border-slate-100 bg-cover bg-center transition duration-500 group-hover:scale-102" style="background-image: url('${sanitizeHTML(proj.media)}');">
-                                    <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]"></div>
-                                    <span class="relative text-white text-[11px] font-black bg-emerald-600/90 backdrop-blur-sm px-4 py-1.5 rounded-full flex items-center gap-1 shadow-sm border border-emerald-500/30">مصادق عليه ✅</span>
-                                </div>
-                                <div class="p-6 text-xs text-slate-600 space-y-2.5">
-                                    <p class="flex items-center gap-2"><span class="font-black text-slate-900 w-16">الطالب:</span> <span class="bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 text-slate-700 font-bold">${sanitizeHTML(proj.student)}</span></p>
-                                    <p class="flex items-center gap-2"><span class="font-black text-slate-900 w-16">المؤطر:</span> <span class="text-slate-700 font-semibold">${sanitizeHTML(proj.instructor)}</span></p>
-                                    <p class="flex items-center gap-2"><span class="font-black text-slate-900 w-16">التخصص:</span> <span class="text-violet-700 font-black bg-violet-50 px-2.5 py-0.5 rounded-md border border-violet-100/50">${sanitizeHTML(proj.specialty)}</span></p>
-                                </div>
-                            </div>
-                            <div class="p-6 pt-0">
-                                <a href="${sanitizeHTML(proj.link)}" target="_blank" class="inline-block w-full text-center bg-slate-50 border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-black text-xs hover:border-violet-600 hover:text-violet-700 hover:bg-violet-50/20 transition-all duration-300">تصفح وفحص العمل المصدرى</a>
-                            </div>
-                        </div>`;
-                    });
-                    projectsContainer.innerHTML = projectsHTML;
-                } else {
-                    projectsContainer.innerHTML = '<div class="col-span-full text-center text-slate-400 font-bold py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-white">لا توجد مشاريع تطبيقية معتمدة في المعرض حالياً.</div>';
-                }
-            } catch (err) {
-                console.error(err);
-                document.getElementById('courses-container').innerHTML = '<div class="col-span-full text-center text-red-500 py-12 font-bold bg-white border border-red-100 rounded-2xl">عذراً، فشل الاتصال بقاعدة البيانات الأمنية. يرجى مراجعة حالة النشر (Deploy) على السيرفر.</div>';
-            }
-        }
-        document.addEventListener('DOMContentLoaded', fetchDynamicData);
-
-        // --- إدارة النوافذ المنبثقة (المودال) ---
-        const modal = document.getElementById('paymentModal');
-        const modalContent = document.getElementById('modalContent');
-        function openPaymentModal(course) { document.getElementById('pay-course').value = course; modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); }, 10); }
-        function closePaymentModal() { modal.classList.add('opacity-0'); modalContent.classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); document.getElementById('payment-form').reset(); }, 300); }
-
-        // --- نظام إرسال البيانات المطور الآمن لحل مشكلة تعليق السيرفر والمصادقة الصامتة ---
-        async function sendSecureData(data, btn, originalText, successMsg, form) {
-            // تنظيف البيانات المدخلة قبل الإرسال لمنع تلف الجداول أو الحقن
-            Object.keys(data).forEach(key => {
-                if (typeof data[key] === 'string') data[key] = data[key].trim();
-            });
-
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000); 
-
-                await fetch(SCRIPT_URL, { 
-                    method: 'POST', 
-                    mode: 'no-cors', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                alert(successMsg); 
-                form.reset(); 
-                closePaymentModal();
-                fetchDynamicData(); 
-            } catch (e) { 
-                alert('حدث خطأ أثناء التشفير أو انتهت مهلة الاتصال الآمن بالسيرفر. يرجى المحاولة مجدداً.'); 
-            } finally { 
-                btn.innerText = originalText; 
-                btn.disabled = false; 
-                btn.classList.remove('opacity-60', 'cursor-not-allowed'); 
+                renderCourses(data.courses);
+                renderProjects(data.projects);
+            } catch (error) {
+                console.error('خطأ في جلب البيانات:', error);
+                document.getElementById('courses-container').innerHTML = '<p class="col-span-full text-center font-bold text-red-500">تعذر الاتصال بالسيرفر، يرجى المحاولة لاحقاً.</p>';
+                document.getElementById('projects-container').innerHTML = '<p class="col-span-full text-center font-bold text-red-500">تعذر الاتصال بالسيرفر، يرجى المحاولة لاحقاً.</p>';
             }
         }
 
-        // مستمعات الأحداث المحدثة مع تفعيل مؤشرات التشفير
-        document.getElementById('instructor-form').addEventListener('submit', function(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-inst'); 
-            btn.innerText = 'جاري التشفير والمصادقة البرمجية...'; 
-            btn.disabled = true; 
-            btn.classList.add('opacity-60', 'cursor-not-allowed');
-
-            const payload = { 
-                action: "instructor_registration", 
-                name: document.getElementById('inst-name').value, 
-                course_name: document.getElementById('inst-course').value, 
-                phone: document.getElementById('inst-phone').value, 
-                wilaya: document.getElementById('inst-wilaya').value, 
-                group_link: document.getElementById('inst-link').value, 
-                qualifications: document.getElementById('inst-qual').value, 
-                duration: document.getElementById('inst-duration').value, 
-                price: document.getElementById('inst-price').value, 
-                ccp: document.getElementById('inst-ccp').value,
-                instImageBase64: "", // لحفظ الصورة مشفرة
-                instMimeType: "",
-                instFileName: ""
-            };
-
-            const imageInput = document.getElementById('inst-image');
-            if (imageInput && imageInput.files.length > 0) {
-                const file = imageInput.files[0];
-                if (file.size > 2 * 1024 * 1024) {
-                    alert("عذراً، حجم الصورة كبير جداً! يرجى اختيار صورة أقل من 2 ميغابايت لتخفيف الضغط على السيرفر.");
-                    btn.innerText = 'تقديم طلب الانضمام والاعتماد'; btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-not-allowed');
-                    return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    payload.instImageBase64 = ev.target.result.split(',')[1];
-                    payload.instFileName = file.name;
-                    payload.instMimeType = file.type;
-                    sendSecureData(payload, btn, 'تقديم طلب الانضمام والاعتماد', 'تم تسجيل طلب الاعتماد ورفع صورتك بنجاح! سيتم مراجعته من قبل الإدارة.', e.target);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                sendSecureData(payload, btn, 'تقديم طلب الانضمام والاعتماد', 'تم تسجيل طلب الاعتماد الخاص بك بنجاح! سيتم مراجعته من قبل الإدارة.', e.target);
-            }
-        });
-
-        document.getElementById('project-form').addEventListener('submit', function(e) {
-            e.preventDefault(); const btn = document.getElementById('btn-proj'); btn.innerText = 'جاري الفحص المسبق وإيداع الشيفرات...'; btn.disabled = true; btn.classList.add('opacity-60', 'cursor-not-allowed');
-            sendSecureData({ action: "project_submission", student_name: document.getElementById('proj-student').value, instructor_name: document.getElementById('proj-inst').value, specialty: document.getElementById('proj-spec').value, project_link: document.getElementById('proj-link').value, media_link: document.getElementById('proj-media').value }, btn, 'إيداع المشروع للمصادقة والمراجعة', 'تم استقبال وإنشاء وثيقة مشروعك بنجاح وجاري إرسالها للمراجعة الفنية!', e.target);
-        });
-
-        document.getElementById('payment-form').addEventListener('submit', function(e) {
-            e.preventDefault(); const btn = document.getElementById('btn-pay'); const file = document.getElementById('pay-file').files[0];
-            
-            // ثغرة حجم الملف الخبيث: منع الملفات الأكبر من 3 ميغابايت فوراً
-            if (file.size > 3 * 1024 * 1024) {
-                alert("خطأ أمني: حجم الوصل كبير جداً ومرفوض! يرجى اختيار صورة أو ملف حجمه أقل من 3 ميغابايت.");
+        // عرض الدورات التدريبية
+        function renderCourses(courses) {
+            const container = document.getElementById('courses-container');
+            if (!courses || courses.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 bg-white border border-slate-200 rounded-2xl"><p class="text-slate-500 font-bold">لا توجد دورات مفعلة حالياً.</p></div>';
                 return;
             }
-            
-            btn.innerText = 'جاري تشفير ورفع الوصل الإلكتروني سحابياً...'; btn.disabled = true; btn.classList.add('opacity-60', 'cursor-not-allowed');
-            const reader = new FileReader(); 
-            reader.onload = function(ev) {
-                sendSecureData({ action: "payment_submission", studentName: document.getElementById('pay-name').value, studentPhone: document.getElementById('pay-phone').value, studentEmail: document.getElementById('pay-email').value, courseName: document.getElementById('pay-course').value, fileName: file.name, mimeType: file.type, fileBase64: ev.target.result.split(',')[1] }, btn, 'تأكيد البيانات ورفع الوصل للإدارة', 'تم رفع إيصال الدفع بنجاح! يرجى انتظار رسالة التفعيل الآلي عبر بريدك الإلكتروني في غضون دقائق.', e.target);
-            }; 
-            reader.readAsDataURL(file);
+
+            container.innerHTML = courses.map(course => `
+                <div class="premium-card bg-white p-6 rounded-3xl flex flex-col h-full relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-full h-1.5 bg-violet-custom opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    
+                    <div class="flex items-center gap-4 mb-5">
+                        ${course.instructorImage ? 
+                            `<img src="${sanitizeHTML(course.instructorImage)}" alt="الأستاذ" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm" onerror="this.src='https://placehold.co/100x100/5b21b6/ffffff?text=U'">` : 
+                            `<div class="w-14 h-14 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center font-black text-xl shadow-sm border border-violet-100">${sanitizeHTML(course.instructor).charAt(0)}</div>`
+                        }
+                        <div>
+                            <p class="text-xs text-slate-400 font-bold mb-0.5">المدرب / الأستاذ</p>
+                            <h4 class="text-sm font-black text-slate-900">${sanitizeHTML(course.instructor)}</h4>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-lg font-black text-violet-900 mb-4 leading-tight">${sanitizeHTML(course.courseName)}</h3>
+                    
+                    <div class="space-y-2.5 mb-6 flex-grow">
+                        <p class="text-xs text-slate-600 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300"></span> <strong>الولاية:</strong> ${sanitizeHTML(course.wilaya)}</p>
+                        <p class="text-xs text-slate-600 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300"></span> <strong>المدة:</strong> ${sanitizeHTML(course.duration)}</p>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
+                        <span class="text-lg font-black text-slate-900">${sanitizeHTML(course.price)} د.ج</span>
+                        <button onclick="openPaymentModal('${sanitizeHTML(course.courseName)}')" class="bg-violet-custom text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-violet-800 transition shadow-md shadow-violet-500/20">حجز مقعد</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // عرض المشاريع (مع استخدام وسم الصورة <img> لعرض رابط الميديا)
+        function renderProjects(projects) {
+            const container = document.getElementById('projects-container');
+            if (!projects || projects.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 bg-white border border-slate-200 rounded-2xl"><p class="text-slate-500 font-bold">لم يتم نشر مشاريع مصادق عليها بعد.</p></div>';
+                return;
+            }
+
+            container.innerHTML = projects.map(proj => `
+                <div class="premium-card bg-white p-5 rounded-3xl flex flex-col h-full group">
+                    <div class="relative overflow-hidden rounded-2xl mb-4 border border-slate-100 shadow-sm">
+                        <img src="${proj.media ? sanitizeHTML(proj.media) : 'https://placehold.co/600x400/f8fafc/94a3b8?text=SouqTeck+Project'}" 
+                             alt="معاينة المشروع" 
+                             class="w-full h-48 object-cover transform group-hover:scale-105 transition duration-500"
+                             onerror="this.src='https://placehold.co/600x400/f8fafc/94a3b8?text=SouqTeck+Project'">
+                    </div>
+                    <div class="flex items-start justify-between gap-2 mb-3">
+                        <h3 class="text-base font-black text-slate-900">${sanitizeHTML(proj.student)}</h3>
+                        <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-md whitespace-nowrap">${sanitizeHTML(proj.specialty)}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-5 font-medium">تحت إشراف: <span class="font-bold text-slate-700">${sanitizeHTML(proj.instructor)}</span></p>
+                    
+                    <a href="${sanitizeHTML(proj.link)}" target="_blank" class="mt-auto text-center w-full bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black py-3 rounded-xl border border-slate-200 transition">تصفح الشيفرة المصدرية</a>
+                </div>
+            `).join('');
+        }
+
+        // 2. معالجة نموذج إرسال المدرب
+        document.getElementById('instructor-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-inst');
+            btn.innerHTML = 'جاري الإرسال... <span class="loader ml-2 inline-block w-4 h-4 border-2"></span>';
+            btn.disabled = true;
+
+            try {
+                let instImageBase64 = "", instMimeType = "", instFileName = "";
+                const imageFile = document.getElementById('inst-image').files[0];
+                
+                if (imageFile) {
+                    instImageBase64 = await fileToBase64(imageFile);
+                    instMimeType = imageFile.type;
+                    instFileName = imageFile.name;
+                }
+
+                const payload = {
+                    action: "instructor_registration",
+                    name: document.getElementById('inst-name').value,
+                    phone: document.getElementById('inst-phone').value,
+                    course_name: document.getElementById('inst-course').value,
+                    wilaya: document.getElementById('inst-wilaya').value,
+                    group_link: document.getElementById('inst-link').value,
+                    qualifications: document.getElementById('inst-qual').value,
+                    duration: document.getElementById('inst-duration').value,
+                    price: document.getElementById('inst-price').value,
+                    ccp: document.getElementById('inst-ccp').value,
+                    instImageBase64: instImageBase64,
+                    instMimeType: instMimeType,
+                    instFileName: instFileName
+                };
+
+                await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+
+                alert("تم إرسال طلبك بنجاح! سيتم مراجعته قريباً.");
+                e.target.reset();
+            } catch (error) {
+                alert("حدث خطأ أثناء الإرسال. يرجى المحاولة مرة أخرى.");
+            } finally {
+                btn.innerHTML = 'تقديم طلب الانضمام والاعتماد';
+                btn.disabled = false;
+            }
         });
 
-        // تأثير الظهور الناعم المحسن عند التمرير للأسفل (Micro-interactions)
-        function reveal() { document.querySelectorAll(".reveal").forEach(el => { if (el.getBoundingClientRect().top < window.innerHeight - 60) el.classList.add("active"); }); }
-        window.addEventListener("scroll", reveal); reveal();
+        // 3. معالجة نموذج إيداع المشروع
+        document.getElementById('project-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-proj');
+            btn.innerHTML = 'جاري الإرسال... <span class="loader ml-2 inline-block w-4 h-4 border-2" style="border-top-color:#fff;"></span>';
+            btn.disabled = true;
+
+            try {
+                const payload = {
+                    action: "project_submission",
+                    student_name: document.getElementById('proj-student').value,
+                    instructor_name: document.getElementById('proj-inst').value,
+                    specialty: document.getElementById('proj-spec').value,
+                    project_link: document.getElementById('proj-link').value,
+                    media_link: document.getElementById('proj-media').value // الرابط المباشر للصورة سيتم معالجته في السكريبت
+                };
+
+                await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+
+                alert("تم إيداع المشروع بنجاح! سيتم عرضه بعد المصادقة.");
+                e.target.reset();
+            } catch (error) {
+                alert("حدث خطأ. يرجى التأكد من اتصالك بالإنترنت.");
+            } finally {
+                btn.innerHTML = 'إيداع المشروع للمصادقة والمراجعة';
+                btn.disabled = false;
+            }
+        });
+
+        // 4. التحكم في نافذة الدفع (Modal)
+        const paymentModal = document.getElementById('paymentModal');
+        const modalContent = document.getElementById('modalContent');
+        const courseInput = document.getElementById('pay-course');
+
+        function openPaymentModal(courseName) {
+            courseInput.value = courseName;
+            paymentModal.classList.remove('hidden');
+            // تأخير بسيط لإظهار الأنيميشن
+            setTimeout(() => {
+                paymentModal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closePaymentModal() {
+            paymentModal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                paymentModal.classList.add('hidden');
+                document.getElementById('payment-form').reset();
+            }, 300);
+        }
+
+        // تحميل البيانات عند فتح الصفحة
+        window.addEventListener('DOMContentLoaded', loadPlatformData);
+
     </script>
 </body>
 </html>
